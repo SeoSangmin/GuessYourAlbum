@@ -34,9 +34,14 @@ export default function AlbumViewer({ album }) {
   const spreadPages = pages.filter(p => p.pageIndex >= 0);
   
   const spreads = [];
-  for (let i = 0; i < spreadPages.length; i += 2) {
-    spreads.push([spreadPages[i] || null, spreadPages[i + 1] || null]);
+  const maxPageIndex = spreadPages.length > 0 ? Math.max(...spreadPages.map(p => p.pageIndex)) : -1;
+  for (let i = 0; i <= maxPageIndex; i += 2) {
+    const left = spreadPages.find(p => p.pageIndex === i) || null;
+    const right = spreadPages.find(p => p.pageIndex === i + 1) || null;
+    spreads.push([left, right]);
   }
+
+  const isObserverScroll = useRef(false);
 
   useEffect(() => {
     const container = thumbnailRef.current;
@@ -50,6 +55,7 @@ export default function AlbumViewer({ album }) {
           
           setFocusedPageIndex(prev => {
             if (prev !== newPageIndex) {
+              isObserverScroll.current = true;
               return newPageIndex;
             }
             return prev;
@@ -69,6 +75,11 @@ export default function AlbumViewer({ album }) {
 
   // Sync thumbnail scroll when focusedPageIndex changes
   useEffect(() => {
+    if (isObserverScroll.current) {
+      isObserverScroll.current = false;
+      return; // Skip programmatic scroll if change came from native scroll
+    }
+
     if (!thumbnailRef.current) return;
     const isCover = focusedPageIndex === -1;
     const spreadIndex = isCover ? 0 : Math.floor(focusedPageIndex / 2) + 1; // +1 because cover is first child
@@ -76,11 +87,11 @@ export default function AlbumViewer({ album }) {
     if (targetChild) {
       isProgrammaticScroll.current = true;
       const scrollPos = targetChild.offsetLeft - thumbnailRef.current.clientWidth / 2 + targetChild.clientWidth / 2;
-      thumbnailRef.current.scrollTo({ left: scrollPos, behavior: "auto" });
+      thumbnailRef.current.scrollTo({ left: scrollPos, behavior: "smooth" });
       
       setTimeout(() => {
         isProgrammaticScroll.current = false;
-      }, 50);
+      }, 500); // 500ms to allow smooth scroll to finish
     }
   }, [focusedPageIndex]);
 
@@ -102,7 +113,7 @@ export default function AlbumViewer({ album }) {
     const handleKeyDown = (e) => {
       if (e.key === "ArrowRight") {
         setFocusedPageIndex((prev) => {
-          if (prev + 2 < spreadPages.length) return prev + 2;
+          if (prev + 2 < spreads.length * 2) return prev + 2;
           return prev;
         });
       } else if (e.key === "ArrowLeft") {
@@ -114,7 +125,7 @@ export default function AlbumViewer({ album }) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [spreadPages.length]);
+  }, [spreads.length]);
 
   const refreshAlbum = async () => {
     try {
@@ -154,7 +165,7 @@ export default function AlbumViewer({ album }) {
       await fetch(`/api/albums/${album.id}/pages?pageIndex=${pageIndex}`, {
         method: "DELETE"
       });
-      if (focusedPageIndex >= spreadPages.length - 2) {
+      if (focusedPageIndex >= (spreads.length - 1) * 2) {
         setFocusedPageIndex(prev => (prev >= 2 ? prev - 2 : -1));
       }
       await refreshAlbum();
@@ -167,12 +178,14 @@ export default function AlbumViewer({ album }) {
     setConfirmAction({ type: 'deleteSpread', pageIndex });
   };
 
-  const leftPage = currentPageIndex >= 0 ? spreadPages[currentPageIndex] || null : null;
-  const rightPage = currentPageIndex >= 0 ? spreadPages[currentPageIndex + 1] || null : null;
+  const spreadIndex = Math.floor(currentPageIndex / 2);
+  const currentSpread = currentPageIndex >= 0 && spreadIndex < spreads.length ? spreads[spreadIndex] : [null, null];
+  const leftPage = currentSpread[0];
+  const rightPage = currentSpread[1];
 
   const handleNext = () => {
     setFocusedPageIndex((prev) => {
-      if (prev + 2 < spreadPages.length) return prev === -1 ? 0 : prev + 2;
+      if (prev + 2 < spreads.length * 2) return prev === -1 ? 0 : prev + 2;
       return prev;
     });
   };
@@ -295,15 +308,16 @@ export default function AlbumViewer({ album }) {
     
     newSpreads.forEach(spread => {
       if (spread[0]) {
-        const p = { ...spread[0], pageIndex: currentIndex++ };
+        const p = { ...spread[0], pageIndex: currentIndex };
         newPages.push(p);
         updates.push({ id: p.id, pageIndex: p.pageIndex });
       }
       if (spread[1]) {
-        const p = { ...spread[1], pageIndex: currentIndex++ };
+        const p = { ...spread[1], pageIndex: currentIndex + 1 };
         newPages.push(p);
         updates.push({ id: p.id, pageIndex: p.pageIndex });
       }
+      currentIndex += 2;
     });
 
     setPages(newPages);
@@ -556,7 +570,7 @@ export default function AlbumViewer({ album }) {
           </button>
         </div>
         <span className={styles.pageIndicator}>
-          {focusedPageIndex === -1 ? 'Cover' : `Pages ${focusedPageIndex + 1} - ${Math.min(focusedPageIndex + 2, spreadPages.length)} of ${spreadPages.length}`}
+          {focusedPageIndex === -1 ? 'Cover' : `Pages ${focusedPageIndex + 1} - ${Math.min(focusedPageIndex + 2, spreads.length * 2)} of ${spreads.length * 2}`}
         </span>
       </div>
 
