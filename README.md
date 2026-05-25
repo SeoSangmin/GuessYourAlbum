@@ -32,10 +32,13 @@ cd 폴더명
 # 2. 패키지 모듈 설치 (Install dependencies)
 npm install
 
-# 3. 로컬 데이터베이스 초기화 및 생성 (Initialize Database)
+# 3. 환경변수 파일 생성 (Create .env file)
+cp .env.example .env
+
+# 4. 로컬 데이터베이스 초기화 및 생성 (Initialize Database)
 npx prisma db push
 
-# 4. 개발 서버 실행 (Start Development Server)
+# 5. 개발 서버 실행 (Start Development Server)
 npm run dev
 ```
 
