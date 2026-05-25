@@ -65,7 +65,7 @@ export default function AlbumViewer({ album }) {
     Array.from(container.children).forEach(child => observer.observe(child));
 
     return () => observer.disconnect();
-  }, [pages.length]);
+  }, [pages]);
 
   // Sync thumbnail scroll when focusedPageIndex changes
   useEffect(() => {
@@ -102,7 +102,7 @@ export default function AlbumViewer({ album }) {
     const handleKeyDown = (e) => {
       if (e.key === "ArrowRight") {
         setFocusedPageIndex((prev) => {
-          if (prev + 2 < pages.length) return prev + 2;
+          if (prev + 2 < spreadPages.length) return prev + 2;
           return prev;
         });
       } else if (e.key === "ArrowLeft") {
@@ -114,7 +114,7 @@ export default function AlbumViewer({ album }) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [pages.length]);
+  }, [spreadPages.length]);
 
   const refreshAlbum = async () => {
     try {
@@ -134,12 +134,12 @@ export default function AlbumViewer({ album }) {
       await fetch(`/api/albums/${album.id}/pages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pageIndex: currentPageIndex })
+        body: JSON.stringify({ pageIndex: focusedPageIndex })
       });
       await refreshAlbum();
       
       // Focus on the newly added spread
-      const targetInsertIndex = currentPageIndex === -1 ? 0 : currentPageIndex + 2;
+      const targetInsertIndex = focusedPageIndex === -1 ? 0 : focusedPageIndex + 2;
       setFocusedPageIndex(targetInsertIndex);
     } catch (e) {
       console.error(e);
@@ -154,8 +154,8 @@ export default function AlbumViewer({ album }) {
       await fetch(`/api/albums/${album.id}/pages?pageIndex=${pageIndex}`, {
         method: "DELETE"
       });
-      if (focusedPageIndex >= pages.length - 2 && focusedPageIndex > 0) {
-        setFocusedPageIndex(prev => prev - 2);
+      if (focusedPageIndex >= spreadPages.length - 2) {
+        setFocusedPageIndex(prev => (prev >= 2 ? prev - 2 : -1));
       }
       await refreshAlbum();
     } catch (e) {
