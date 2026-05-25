@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.inputWrapper {
+  display: inline-grid;
+  align-items: center;
+}
+
+.inputWrapper::after {
+  content: attr(data-value) " ";
+  visibility: hidden;
+  white-space: pre;
+  grid-area: 1 / 1;
+  font-size: 2.2rem;
+  font-weight: 700;
+  font-family: 'Times New Roman', 'Noto Serif KR', 'Batang', serif;
+  letter-spacing: 1px;
+  padding: 2px 5px;
+}
+
+.titleInput {
+  grid-area: 1 / 1;
+  width: 100%;
+  min-width: 1ch;
+  box-sizing: border-box;
+  font-size: 2.2rem;
+  font-weight: 700;
+  font-family: 'Times New Roman', 'Noto Serif KR', 'Batang', serif;
+  letter-spacing: 1px;
+  padding: 2px 5px;
+  border: none;
+  border-bottom: 2px solid blue;
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  text-align: center;
+  color: black;
+  box-shadow: none;
+}
+</style>
+</head>
+<body>
+  <div class="inputWrapper" data-value="My Album">
+    <input class="titleInput" value="My Album">
+  </div>
+</body>
+</html>

@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Album {
+  id          String   @id @default(uuid())
+  name        String
+  aspectRatio String   // e.g., "16:9", "4:3", "1:1"
+  totalPages  Int
+  coverImage  String?  // File path or null for white
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  pages       Page[]
+}
+
+model Page {
+  id          String   @id @default(uuid())
+  albumId     String
+  album       Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  pageIndex   Int      // 0 to totalPages - 1
+  photo       Photo?   // One photo per page initially, or can be extended
+}
+
+model Photo {
+  id           String   @id @default(uuid())
+  pageId       String   @unique
+  page         Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  originalName String
+  filePath     String
+  createdAt    DateTime @default(now())
+}
