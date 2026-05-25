@@ -17,6 +17,8 @@ export default function AlbumViewer({ album }) {
   const [confirmAction, setConfirmAction] = useState(null);
   const [albumName, setAlbumName] = useState(album.name);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [draggedSpreadIndex, setDraggedSpreadIndex] = useState(null);
+  const [dragOverSpreadIndex, setDragOverSpreadIndex] = useState(null);
   const titleInputRef = useRef(null);
 
   const thumbnailRef = useRef(null);
@@ -135,6 +137,10 @@ export default function AlbumViewer({ album }) {
         body: JSON.stringify({ pageIndex: currentPageIndex })
       });
       await refreshAlbum();
+      
+      // Focus on the newly added spread
+      const targetInsertIndex = currentPageIndex === -1 ? 0 : currentPageIndex + 2;
+      setFocusedPageIndex(targetInsertIndex);
     } catch (e) {
       console.error(e);
     }
@@ -247,6 +253,73 @@ export default function AlbumViewer({ album }) {
       });
     } catch (error) {
       console.error("Move failed", error);
+    }
+  };
+
+  const handleThumbnailDragStart = (e, index) => {
+    setDraggedSpreadIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleThumbnailDragOver = (e, index) => {
+    e.preventDefault();
+    if (draggedSpreadIndex !== null && draggedSpreadIndex !== index) {
+      setDragOverSpreadIndex(index);
+    }
+  };
+
+  const handleThumbnailDragLeave = (e, index) => {
+    e.preventDefault();
+    if (dragOverSpreadIndex === index) {
+      setDragOverSpreadIndex(null);
+    }
+  };
+
+  const handleThumbnailDrop = async (e, targetIndex) => {
+    e.preventDefault();
+    if (draggedSpreadIndex === null || draggedSpreadIndex === targetIndex) {
+      setDraggedSpreadIndex(null);
+      setDragOverSpreadIndex(null);
+      return;
+    }
+
+    const newSpreads = [...spreads];
+    const [draggedItem] = newSpreads.splice(draggedSpreadIndex, 1);
+    newSpreads.splice(targetIndex, 0, draggedItem);
+
+    const newPages = [];
+    if (coverPage) newPages.push(coverPage);
+    
+    let currentIndex = 0;
+    const updates = [];
+    
+    newSpreads.forEach(spread => {
+      if (spread[0]) {
+        const p = { ...spread[0], pageIndex: currentIndex++ };
+        newPages.push(p);
+        updates.push({ id: p.id, pageIndex: p.pageIndex });
+      }
+      if (spread[1]) {
+        const p = { ...spread[1], pageIndex: currentIndex++ };
+        newPages.push(p);
+        updates.push({ id: p.id, pageIndex: p.pageIndex });
+      }
+    });
+
+    setPages(newPages);
+    setDraggedSpreadIndex(null);
+    setDragOverSpreadIndex(null);
+    setFocusedPageIndex(targetIndex * 2);
+
+    try {
+      await fetch(`/api/albums/${album.id}/pages/reorder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates })
+      });
+    } catch (err) {
+      console.error("Failed to reorder", err);
+      refreshAlbum();
     }
   };
 
@@ -391,6 +464,7 @@ export default function AlbumViewer({ album }) {
                     page={coverPage} 
                     onUpload={(file) => handleUpload(coverPage.id, file)} 
                     onDelete={(photoId) => handleDelete(coverPage.id, photoId)}
+                    isCover={true}
                   />
                 )}
               </div>
@@ -448,7 +522,7 @@ export default function AlbumViewer({ album }) {
           <button 
             className={styles.addPageBtn}
             onClick={() => setConfirmAction({ type: 'add' })}
-            title="Add 2 pages at current spread"
+            title="Add 2 pages after current spread"
           >
             <FilePlus size={20} />
           </button>
@@ -511,8 +585,13 @@ export default function AlbumViewer({ album }) {
             <div 
               key={index} 
               data-index={index}
-              className={`${styles.thumbnailSpread} ${isActive ? styles.activeThumbnail : ""}`}
+              className={`${styles.thumbnailSpread} ${isActive ? styles.activeThumbnail : ""} ${draggedSpreadIndex === index ? styles.dragging : ""} ${dragOverSpreadIndex === index ? styles.dragOver : ""}`}
               style={{ aspectRatio: `${aspectRatio * 2} / 1` }}
+              draggable
+              onDragStart={(e) => handleThumbnailDragStart(e, index)}
+              onDragOver={(e) => handleThumbnailDragOver(e, index)}
+              onDragLeave={(e) => handleThumbnailDragLeave(e, index)}
+              onDrop={(e) => handleThumbnailDrop(e, index)}
               onClick={() => {
                 if (focusedPageIndex !== index * 2) {
                   setFocusedPageIndex(index * 2);
@@ -533,7 +612,7 @@ export default function AlbumViewer({ album }) {
       {confirmAction && confirmAction.type === 'add' && (
         <ConfirmModal 
           title="장 추가"
-          message="현재 위치에 2장의 새로운 페이지를 추가하시겠습니까? (이후 페이지들은 뒤로 밀립니다)"
+          message="현재 보고 있는 위치의 다음 장에 2장의 새로운 페이지를 추가하시겠습니까? (이후 페이지들은 뒤로 밀립니다)"
           onConfirm={executeAddPages}
           onCancel={() => setConfirmAction(null)}
         />
@@ -550,20 +629,23 @@ export default function AlbumViewer({ album }) {
   );
 }
 
-function PageContent({ page, onUpload, onDelete, onMove }) {
+function PageContent({ page, onUpload, onDelete, onMove, isCover }) {
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
 
   const onDragOver = (e) => {
+    if (isCover) return;
     e.preventDefault();
     setIsDragging(true);
   };
 
   const onDragLeave = () => {
+    if (isCover) return;
     setIsDragging(false);
   };
 
   const onDrop = (e) => {
+    if (isCover) return;
     e.preventDefault();
     setIsDragging(false);
     
@@ -593,8 +675,8 @@ function PageContent({ page, onUpload, onDelete, onMove }) {
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
         onDrop={onDrop}
-        draggable
-        onDragStart={onDragStart}
+        draggable={!isCover}
+        onDragStart={!isCover ? onDragStart : undefined}
       >
         <img 
           src={page.photo.filePath} 

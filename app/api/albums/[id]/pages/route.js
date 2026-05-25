@@ -12,16 +12,18 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: "Invalid pageIndex" }, { status: 400 });
     }
 
+    const targetInsertIndex = pageIndex === -1 ? 0 : pageIndex + 2;
+
     await prisma.$transaction(async (tx) => {
-      // 1. Shift existing pages +2
+      // 1. Shift existing pages +2 that come AFTER the current spread
       await tx.page.updateMany({
-        where: { albumId: id, pageIndex: { gte: pageIndex } },
+        where: { albumId: id, pageIndex: { gte: targetInsertIndex } },
         data: { pageIndex: { increment: 2 } },
       });
 
-      // 2. Create 2 new pages
-      await tx.page.create({ data: { albumId: id, pageIndex: pageIndex } });
-      await tx.page.create({ data: { albumId: id, pageIndex: pageIndex + 1 } });
+      // 2. Create 2 new pages at the new position
+      await tx.page.create({ data: { albumId: id, pageIndex: targetInsertIndex } });
+      await tx.page.create({ data: { albumId: id, pageIndex: targetInsertIndex + 1 } });
 
       // 3. Update album totalPages
       await tx.album.update({

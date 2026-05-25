@@ -324,6 +324,18 @@
   overflow: hidden;
 }
 
+.thumbnailSpread.dragging {
+  opacity: 0.5;
+  transform: scale(0.95);
+  box-shadow: 0 0 10px rgba(0,0,0,0.3);
+}
+
+.thumbnailSpread.dragOver {
+  border: 2px dashed var(--accent);
+  transform: scale(1.05);
+  z-index: 10;
+}
+
 .thumbnailSpread.activeThumbnail {
   border-color: var(--primary-color);
   transform: scale(1.1);
