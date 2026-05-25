@@ -33,7 +33,10 @@ cd 폴더명
 npm install
 
 # 3. 환경변수 파일 생성 (Create .env file)
+# Mac/Linux 또는 Windows PowerShell:
 cp .env.example .env
+# Windows 명령 프롬프트(cmd)의 경우:
+# copy .env.example .env
 
 # 4. 로컬 데이터베이스 초기화 및 생성 (Initialize Database)
 npx prisma db push
