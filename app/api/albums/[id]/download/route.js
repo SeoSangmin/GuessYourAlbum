@@ -24,9 +24,9 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: "Album not found" }, { status: 404 });
     }
 
-    // Filter pages that have a photo
+    // Filter pages that have a photo and are not the cover page (-1)
     const photos = album.pages
-      .filter(p => p.photo)
+      .filter(p => p.photo && p.pageIndex !== -1)
       .map(p => p.photo);
 
     if (photos.length === 0) {
